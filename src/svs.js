@@ -1,4 +1,3 @@
-const fs = require('fs-extra');
 const path = require('path');
 const fetch = require('node-fetch');
 const parseString = require('xml2js').parseString;
@@ -34,11 +33,11 @@ async function downloadValueSet(
   }
   const data = await response.text();
   parseVSACXML(data, vsDB, options);
-  if (caching) {
-    const file = path.join(output, `${oid}.xml`);
-    await fs.writeFile(file, data);
-    return file;
-  }
+  // if (caching) {
+  //   const file = path.join(output, `${oid}.xml`);
+  //   await fs.writeFile(file, data);
+  //   return file;
+  // }
 }
 
 function getVSACCodeSystem(codeSystems, system) {

@@ -1,4 +1,3 @@
-const fs = require('fs-extra');
 const path = require('path');
 const fetch = require('node-fetch');
 const debug = require('debug')('vsac'); // To turn on DEBUG: $ export DEBUG=vsac
@@ -30,11 +29,11 @@ async function downloadValueSet(
   });
   vsDB[id] = {};
   vsDB[id][version] = new ValueSet(id, version, codes);
-  if (caching) {
-    const file = path.join(output, `${oid}.json`);
-    await fs.writeJson(file, pages);
-    return file;
-  }
+  // if (caching) {
+  //   const file = path.join(output, `${oid}.json`);
+  //   await fs.writeJson(file, pages);
+  //   return file;
+  // }
 }
 
 async function getValueSetPages(apiKey, oid, version, offset = 0) {

@@ -1,5 +1,4 @@
 const { Code, ValueSet } = require('cql-execution');
-const fs = require('fs-extra');
 const proc = require('process');
 const env = proc.env;
 const path = require('path');
@@ -27,10 +26,10 @@ class CodeService {
       this.cache = 'vsac_cache';
     }
 
-    const cacheDBFile = path.join(this.cache, 'valueset-db.json');
-    if (loadFromCache && fs.existsSync(cacheDBFile)) {
-      this.loadValueSetsFromFile(cacheDBFile);
-    }
+    // const cacheDBFile = path.join(this.cache, 'valueset-db.json');
+    // if (loadFromCache && fs.existsSync(cacheDBFile)) {
+    //   this.loadValueSetsFromFile(cacheDBFile);
+    // }
   }
 
   /**
@@ -45,25 +44,25 @@ class CodeService {
    * @param {string} filePath - the path to the file containing valueset JSON
    * @throws {SyntaxException} File is not valid JSON
    */
-  loadValueSetsFromFile(filePath) {
-    filePath = path.resolve(filePath);
-    if (!fs.existsSync(filePath)) {
-      return;
-    }
-    const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    for (let oid in json) {
-      let myOid = json[oid];
-      for (let version in myOid) {
-        let myCodes = myOid[version].codes.map(
-          elem => new Code(elem.code, elem.system, elem.version)
-        );
-        if (typeof this.valueSets[oid] === 'undefined') {
-          this.valueSets[oid] = {};
-        }
-        this.valueSets[oid][version] = new ValueSet(oid, version, myCodes);
-      }
-    }
-  }
+  // loadValueSetsFromFile(filePath) {
+  //   filePath = path.resolve(filePath);
+  //   if (!fs.existsSync(filePath)) {
+  //     return;
+  //   }
+  //   const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  //   for (let oid in json) {
+  //     let myOid = json[oid];
+  //     for (let version in myOid) {
+  //       let myCodes = myOid[version].codes.map(
+  //         elem => new Code(elem.code, elem.system, elem.version)
+  //       );
+  //       if (typeof this.valueSets[oid] === 'undefined') {
+  //         this.valueSets[oid] = {};
+  //       }
+  //       this.valueSets[oid][version] = new ValueSet(oid, version, myCodes);
+  //     }
+  //   }
+  // }
 
   /**
    * Given a list of value set references, will ensure that each has a local
@@ -104,10 +103,11 @@ class CodeService {
       }
     });
     if (oidsAndVersions.length) {
-      const output = path.resolve(this.cache);
-      if (caching && !(await fs.exists(output))) {
-        await fs.mkdirp(output);
-      }
+      const output = null;
+      // const output = path.resolve(this.cache);
+      // if (caching && !(await fs.exists(output))) {
+      //   await fs.mkdirp(output);
+      // }
 
       const promises = oidsAndVersions.map(({ oid, version }) => {
         // Catch errors and convert to resolutions returning an error.  This ensures Promise.all waits for all promises.
@@ -129,7 +129,7 @@ class CodeService {
       if (caching && results.length - errors.length > 0) {
         // There were results, so write the file first before resolving/rejecting
         try {
-          await fs.writeJson(path.join(output, 'valueset-db.json'), this.valueSets);
+          // await fs.writeJson(path.join(output, 'valueset-db.json'), this.valueSets);
         } catch (err) {
           errors.push(err);
         }
@@ -156,7 +156,7 @@ class CodeService {
     options = { svsCodeSystemType: 'url' }
   ) {
     const valueSets = extractSetOfValueSetsFromLibrary(library, checkIncluded);
-    return this.ensureValueSetsWithAPIKey(Array.from(valueSets), umlsAPIKey, caching, options);
+    return this.ensureValueSetsWithAPIKey(Array.from(valueSets)[0], umlsAPIKey, caching, options);
   }
 
   /**
@@ -233,8 +233,11 @@ function extractSetOfValueSetsFromLibrary(
   extractFromIncluded = true,
   valueSets = new Set()
 ) {
+  if (library == null || library.valueSets == null) {
+    return valueSets;
+  }
   // First add all the value sets from this library into the set
-  Object.values(library.valuesets).forEach(vs => valueSets.add(vs));
+  Object.values(library.valueSets).forEach(vs => valueSets.add(vs));
   // Then, if requested, loop through the included libraries and add value sets from each of them
   if (extractFromIncluded && library.includes) {
     Object.values(library.includes).forEach(included =>
