@@ -10,9 +10,9 @@ async function downloadValueSet(
   oid,
   version,
   output,
+  vsacUrl,
   vsDB = {},
-  caching = true,
-  options = { svsCodeSystemType: 'url' }
+  options = { svsCodeSystemType: 'url' },
 ) {
   debug(`Getting ValueSet: ${oid}${version != null ? ` version ${version}` : ''}`);
   const params = new URLSearchParams({ id: oid });
@@ -21,23 +21,25 @@ async function downloadValueSet(
   }
   const requestOptions = {
     headers: {
-      Authorization: `Basic ${Buffer.from(`apikey:${apiKey}`).toString('base64')}`
+      Authorization: `Basic ${btoa(`apikey:${apiKey}`)}`
     }
   };
+
+  const url = `${vsacUrl}?${params}`;
+  debug(`Built Url ${url}`);
+
   const response = await fetch(
-    `https://vsac.nlm.nih.gov/vsac/svs/RetrieveValueSet?${params}`,
+    url,
     requestOptions
   );
+
+  // console.log(response.text,response.status);
   if (!response.ok) {
     throw new Error(response.status);
   }
   const data = await response.text();
   parseVSACXML(data, vsDB, options);
-  // if (caching) {
-  //   const file = path.join(output, `${oid}.xml`);
-  //   await fs.writeFile(file, data);
-  //   return file;
-  // }
+
 }
 
 function getVSACCodeSystem(codeSystems, system) {

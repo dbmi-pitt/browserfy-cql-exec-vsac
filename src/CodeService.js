@@ -6,6 +6,9 @@ const debug = require('debug')('vsac'); // To turn on DEBUG: $ export DEBUG=vsac
 const svs = require('./svs');
 const fhir = require('./fhir');
 
+const VSAC_SVS_URL_TEMPLATE = 'https://vsac.nlm.nih.gov/vsac/svs/RetrieveValueSet';
+const VSAC_FHIR_URL_TEMPLATE = 'https://cts.nlm.nih.gov/fhir/ValueSet/{{oid}}/$expand';
+
 /**
  * Constructs a code service with functions for downloading codes from the National Library of Medicine's
  * Value Set Authority Center.
@@ -13,18 +16,25 @@ const fhir = require('./fhir');
  * @param {boolean=false} loadFromCache - if true, and the cache exists, will initialize itself with the JSON DB
  */
 class CodeService {
-  constructor(vsacCache, loadFromCache = false, useFHIR = false) {
+  constructor(useDefaultUrl = true, useFHIR = false, vsacSvsUrl = VSAC_SVS_URL_TEMPLATE, vsacFhirUrl = VSAC_FHIR_URL_TEMPLATE) {
     this.api = useFHIR ? fhir : svs;
+
+    if (useDefaultUrl) {
+      this.vsacUrl = useFHIR ? VSAC_FHIR_URL_TEMPLATE : VSAC_SVS_URL_TEMPLATE;
+    } else {
+      this.vsacUrl = useFHIR ? vsacFhirUrl : vsacSvsUrl;
+
+    }
 
     // Initialize the local in-memory "database"
     this.valueSets = {}; // This will just be an object of objects.
 
     // Local folder for storing valuesets we get from VSAC.
-    if (typeof vsacCache !== 'undefined') {
-      this.cache = vsacCache;
-    } else {
-      this.cache = 'vsac_cache';
-    }
+    // if (typeof vsacCache !== 'undefined') {
+    //   this.cache = vsacCache;
+    // } else {
+    //   this.cache = 'vsac_cache';
+    // }
 
     // const cacheDBFile = path.join(this.cache, 'valueset-db.json');
     // if (loadFromCache && fs.existsSync(cacheDBFile)) {
@@ -76,9 +86,10 @@ class CodeService {
   async ensureValueSetsWithAPIKey(
     valueSetList = [],
     umlsAPIKey = env['UMLS_API_KEY'],
-    caching = true,
+    // caching = true,
     options = { svsCodeSystemType: 'url' }
   ) {
+
     // First, filter out the value sets we already have
     const filteredVSList = valueSetList.filter(vs => {
       const result = this.findValueSet(vs.id, vs.version);
@@ -112,8 +123,9 @@ class CodeService {
       const promises = oidsAndVersions.map(({ oid, version }) => {
         // Catch errors and convert to resolutions returning an error.  This ensures Promise.all waits for all promises.
         // See: http://stackoverflow.com/questions/31424561/wait-until-all-es6-promises-complete-even-rejected-promises
+
         return this.api
-          .downloadValueSet(umlsAPIKey, oid, version, output, this.valueSets, caching, options)
+          .downloadValueSet(umlsAPIKey, oid, version, output, this.vsacUrl, this.valueSets, options)
           .catch(err => {
             debug(
               `Error downloading valueset ${oid}${version != null ? ` version ${version}` : ''}`,
@@ -126,14 +138,14 @@ class CodeService {
       });
       const results = await Promise.all(promises);
       const errors = results.filter(r => r instanceof Error);
-      if (caching && results.length - errors.length > 0) {
-        // There were results, so write the file first before resolving/rejecting
-        try {
-          // await fs.writeJson(path.join(output, 'valueset-db.json'), this.valueSets);
-        } catch (err) {
-          errors.push(err);
-        }
-      }
+      // if (caching && results.length - errors.length > 0) {
+      //   // There were results, so write the file first before resolving/rejecting
+      //   try {
+      //     // await fs.writeJson(path.join(output, 'valueset-db.json'), this.valueSets);
+      //   } catch (err) {
+      //     errors.push(err);
+      //   }
+      // }
       if (errors.length > 0) {
         throw errors;
       }
@@ -152,11 +164,12 @@ class CodeService {
     library,
     checkIncluded = true,
     umlsAPIKey = env['UMLS_API_KEY'],
-    caching = true,
+    // caching = true,
     options = { svsCodeSystemType: 'url' }
   ) {
     const valueSets = extractSetOfValueSetsFromLibrary(library, checkIncluded);
-    return this.ensureValueSetsWithAPIKey(Array.from(valueSets)[0], umlsAPIKey, caching, options);
+
+    return this.ensureValueSetsWithAPIKey(Array.from(valueSets)[0], umlsAPIKey, options);
   }
 
   /**
@@ -210,7 +223,7 @@ class CodeService {
     } else if (results.length === 1) {
       return results[0];
     } else {
-      return results.reduce(function (a, b) {
+      return results.reduce(function(a, b) {
         if (a.version > b.version) {
           return a;
         } else {

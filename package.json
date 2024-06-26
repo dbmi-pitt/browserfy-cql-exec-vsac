@@ -1,11 +1,12 @@
 {
-  "name": "cql-exec-vsac",
+  "name": "browserfy-cql-exec-vsac",
   "version": "2.2.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git@github.com:cqframework/cql-exec-vsac.git"
   },
+  "description": "Forked from cql-exec-vsac. The purpose is to enable valueset checks on the clientside and to allow for querying from custom VSAC servers.",
   "main": "index.js",
   "scripts": {
     "test": "mocha --reporter spec --recursive",

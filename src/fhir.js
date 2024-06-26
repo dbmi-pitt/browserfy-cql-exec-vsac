@@ -8,13 +8,13 @@ async function downloadValueSet(
   oid,
   version,
   output,
+  vsacUrl,
   vsDB = {},
-  caching = true,
   options = {
     /* reserved for future use */
-  }
+  },
 ) {
-  const pages = await getValueSetPages(apiKey, oid, version);
+  const pages = await getValueSetPages(apiKey, oid, version, vsacUrl);
   if (pages == null || pages.length === 0) {
     return;
   }
@@ -29,22 +29,18 @@ async function downloadValueSet(
   });
   vsDB[id] = {};
   vsDB[id][version] = new ValueSet(id, version, codes);
-  // if (caching) {
-  //   const file = path.join(output, `${oid}.json`);
-  //   await fs.writeJson(file, pages);
-  //   return file;
-  // }
+
 }
 
-async function getValueSetPages(apiKey, oid, version, offset = 0) {
-  const page = await getValueSet(apiKey, oid, version, offset);
+async function getValueSetPages(apiKey, oid, version, vsacUrl, offset = 0, ) {
+  const page = await getValueSet(apiKey, oid, version, vsacUrl ,offset);
   if (page && page.expansion) {
     const pTotal = page.expansion.total;
     const pOffset = page.expansion.offset;
     const pLength = page.expansion.contains && page.expansion.contains.length;
     if (pTotal != null && pOffset != null && pLength != null && pTotal > pOffset + pLength) {
       // Fetch and append the remaining value set pages
-      const remainingPages = await getValueSetPages(apiKey, oid, version, offset + pLength);
+      const remainingPages = await getValueSetPages(apiKey, oid, version, vsacUrl, offset + pLength);
       return [page, ...remainingPages];
     } else {
       return [page];
@@ -52,20 +48,34 @@ async function getValueSetPages(apiKey, oid, version, offset = 0) {
   }
 }
 
-async function getValueSet(apiKey, oid, version, offset = 0) {
+async function getValueSet(apiKey, oid, version, vsacUrl, offset = 0) {
   debug(
     `Getting ValueSet: ${oid}${version != null ? ` version ${version}` : ''} (offset: ${offset})`
   );
+  // const options = {
+  //   headers: {
+  //     Authorization: `Basic ${Buffer.from(`apikey:${apiKey}`).toString('base64')}`
+  //   }
+  // };
+  // const params = new URLSearchParams({ offset });
+  // if (version != null) {
+  //   params.set('valueSetVersion', version);
+  // }
+  // const url = `https://cts.nlm.nih.gov/fhir/ValueSet/${oid}/$expand?${params}`;
+
   const options = {
     headers: {
-      Authorization: `Basic ${Buffer.from(`apikey:${apiKey}`).toString('base64')}`
+      Authorization: `Basic ${btoa(`apikey:${apiKey}`)}`
     }
   };
   const params = new URLSearchParams({ offset });
+
   if (version != null) {
     params.set('valueSetVersion', version);
   }
-  const url = `https://cts.nlm.nih.gov/fhir/ValueSet/${oid}/$expand?${params}`;
+
+  const url = `${vsacUrl.replace('{{oid}}', oid)}?${params}`;
+  debug(`Built Url ${url}`);
 
   const response = await fetch(url, options);
   if (!response.ok) {
